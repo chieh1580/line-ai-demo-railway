@@ -18,6 +18,7 @@ ADMIN_URL = "https://line-ai-demo-railway-production.up.railway.app/admin"
 
 paused_users = set()
 user_profiles = {}
+app_logs = []
 
 TRIGGER_WORDS = ["找真人","找人工","找客服","找老師","真人","人工","我想了解","我想購買"]
 
@@ -255,7 +256,9 @@ def notify_boss(customer_name, message, time_str):
         json={"to": BOSS_USER_ID, "messages": [{"type": "text", "text": text}]},
         timeout=10
     )
-    print(f"[NOTIFY_BOSS] status={r.status_code} response={r.text}", flush=True)
+    log_msg = f"[NOTIFY_BOSS] status={r.status_code} response={r.text}"
+    print(log_msg, flush=True)
+    app_logs.append({"time": datetime.now().strftime("%m/%d %H:%M:%S"), "msg": log_msg})
 
 
 def ask_claude(user_message):
@@ -284,7 +287,9 @@ def webhook():
         user_id = event["source"]["userId"]
         reply_token = event["replyToken"]
         user_message = event["message"]["text"]
-        print(f"[WEBHOOK] userId={user_id} message={user_message}", flush=True)
+        log_msg = f"[WEBHOOK] userId={user_id} message={user_message}"
+        print(log_msg, flush=True)
+        app_logs.append({"time": datetime.now().strftime("%m/%d %H:%M:%S"), "msg": log_msg})
 
         if user_id not in user_profiles:
             profile = get_line_profile(user_id)
@@ -390,6 +395,13 @@ def admin_toggle():
     elif action == "resume":
         paused_users.discard(uid)
     return jsonify({"status": "ok"})
+
+
+@app.route("/debug/logs")
+def debug_logs():
+    if request.cookies.get("admin_auth") != ADMIN_PASSWORD:
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(app_logs[-50:])
 
 
 @app.route("/")

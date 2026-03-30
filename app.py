@@ -265,7 +265,7 @@ def webhook():
         user_id = event["source"]["userId"]
         reply_token = event["replyToken"]
         user_message = event["message"]["text"]
-        app.logger.info(f"[WEBHOOK] userId={user_id} message={user_message}")
+        print(f"[WEBHOOK] userId={user_id} message={user_message}", flush=True)
 
         if user_id not in user_profiles:
             profile = get_line_profile(user_id)

@@ -3,8 +3,12 @@ import anthropic
 import requests
 import os
 from datetime import datetime
+import sys
 
 app = Flask(__name__)
+app.logger.setLevel("INFO")
+app.logger.addHandler(logging_handler := __import__('logging').StreamHandler(sys.stdout))
+logging_handler.setLevel("INFO")
 
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
 LINE_TOKEN = os.environ.get("LINE_TOKEN")
@@ -261,6 +265,7 @@ def webhook():
         user_id = event["source"]["userId"]
         reply_token = event["replyToken"]
         user_message = event["message"]["text"]
+        app.logger.info(f"[WEBHOOK] userId={user_id} message={user_message}")
 
         if user_id not in user_profiles:
             profile = get_line_profile(user_id)

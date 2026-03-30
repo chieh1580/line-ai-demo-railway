@@ -249,12 +249,13 @@ def notify_boss(customer_name, message, time_str):
         f"\u6642\u9593\uff1a{time_str}\n"
         f"\U0001f449 \u5f8c\u53f0\uff1a{ADMIN_URL}"
     )
-    requests.post(
+    r = requests.post(
         "https://api.line.me/v2/bot/message/push",
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"},
         json={"to": BOSS_USER_ID, "messages": [{"type": "text", "text": text}]},
         timeout=10
     )
+    print(f"[NOTIFY_BOSS] status={r.status_code} response={r.text}", flush=True)
 
 
 def ask_claude(user_message):

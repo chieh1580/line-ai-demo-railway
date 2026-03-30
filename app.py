@@ -315,7 +315,7 @@ def admin():
     active_count = len(active_list)
     ai_rate = round((active_count / total * 100) if total > 0 else 100)
 
-    return render_template_string(
+    html = render_template_string(
         ADMIN_HTML,
         authenticated=authenticated,
         brand_name=brand_name,
@@ -328,6 +328,9 @@ def admin():
         ai_rate=ai_rate,
         error=False
     )
+    resp = make_response(html)
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return resp
 
 
 @app.route("/admin/login", methods=["POST"])
@@ -338,11 +341,14 @@ def admin_login():
         resp.set_cookie("admin_auth", ADMIN_PASSWORD, max_age=86400 * 7)
         return resp
     brand_name = os.environ.get("BRAND_NAME", "YS 療癒美學")
-    return render_template_string(
+    html = render_template_string(
         ADMIN_HTML, authenticated=False, brand_name=brand_name,
         paused_users_list=[], active_users=[], pending_users=[],
         total=0, active=0, paused_count=0, ai_rate=100, error=True
     )
+    resp = make_response(html)
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return resp
 
 
 @app.route("/admin/toggle", methods=["POST"])

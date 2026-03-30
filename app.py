@@ -294,7 +294,7 @@ def webhook():
 @app.route("/admin")
 def admin():
     authenticated = request.cookies.get("admin_auth") == ADMIN_PASSWORD
-    brand_name = os.environ.get("BRAND_NAME", "YS 療癒美學")
+    brand_name = "YS \u7642\u7652\u7f8e\u5b78"
 
     all_users = []
     for uid, p in user_profiles.items():
@@ -340,7 +340,7 @@ def admin_login():
         resp = make_response(redirect("/admin"))
         resp.set_cookie("admin_auth", ADMIN_PASSWORD, max_age=86400 * 7)
         return resp
-    brand_name = os.environ.get("BRAND_NAME", "YS 療癒美學")
+    brand_name = "YS \u7642\u7652\u7f8e\u5b78"
     html = render_template_string(
         ADMIN_HTML, authenticated=False, brand_name=brand_name,
         paused_users_list=[], active_users=[], pending_users=[],

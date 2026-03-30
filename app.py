@@ -13,6 +13,8 @@ logging_handler.setLevel("INFO")
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
 LINE_TOKEN = os.environ.get("LINE_TOKEN")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "ys2024")
+BOSS_USER_ID = "Ubfb649a185011fd5ef24fe1c92f2fe4e"
+ADMIN_URL = "https://line-ai-demo-railway-production.up.railway.app/admin"
 
 paused_users = set()
 user_profiles = {}
@@ -239,6 +241,22 @@ def reply_to_user(reply_token, message):
     )
 
 
+def notify_boss(customer_name, message, time_str):
+    text = (
+        f"\U0001f514 \u6709\u5ba2\u4eba\u9700\u8981\u60a8\u56de\u8986\uff01\n"
+        f"\u5ba2\u4eba\uff1a{customer_name}\n"
+        f"\u8a0a\u606f\uff1a{message}\n"
+        f"\u6642\u9593\uff1a{time_str}\n"
+        f"\U0001f449 \u5f8c\u53f0\uff1a{ADMIN_URL}"
+    )
+    requests.post(
+        "https://api.line.me/v2/bot/message/push",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"},
+        json={"to": BOSS_USER_ID, "messages": [{"type": "text", "text": text}]},
+        timeout=10
+    )
+
+
 def ask_claude(user_message):
     client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
     msg = client.messages.create(
@@ -285,6 +303,9 @@ def webhook():
         if any(word in user_message for word in TRIGGER_WORDS):
             paused_users.add(user_id)
             reply_to_user(reply_token, "好的！我馬上幫您通知專人，請稍候片刻，我們會盡快與您聯繫 🙏")
+            customer_name = user_profiles[user_id]["name"]
+            time_str = user_profiles[user_id]["lastTime"]
+            notify_boss(customer_name, user_message, time_str)
             continue
 
         try:

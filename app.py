@@ -1191,25 +1191,40 @@ def setup_richmenu():
     img = Image.new("RGB", (W, H), "#2d1f14")
     draw = ImageDraw.Draw(img)
 
-    # 載入字體
-    font_paths = [
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "C:/Windows/Fonts/msjh.ttc",
-    ]
+    # 載入中文字體（先嘗試本機，再從 Google Fonts 下載）
     font_large = None
     font_small = None
+    font_paths = [
+        "/tmp/NotoSansTC.ttf",
+        "C:/Windows/Fonts/msjh.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    ]
+
+    # 如果 /tmp 沒有字體檔，先下載
+    if not os.path.exists("/tmp/NotoSansTC.ttf"):
+        try:
+            font_url = "https://github.com/google/fonts/raw/main/ofl/notosanstc/NotoSansTC%5Bwght%5D.ttf"
+            fr = requests.get(font_url, timeout=30)
+            if fr.status_code == 200:
+                with open("/tmp/NotoSansTC.ttf", "wb") as f:
+                    f.write(fr.content)
+                print("[RICHMENU] Downloaded NotoSansTC font", flush=True)
+        except Exception as e:
+            print(f"[RICHMENU] Font download failed: {e}", flush=True)
+
     for fp in font_paths:
         try:
             font_large = ImageFont.truetype(fp, 64)
             font_small = ImageFont.truetype(fp, 36)
+            print(f"[RICHMENU] Using font: {fp}", flush=True)
             break
         except Exception:
             continue
     if not font_large:
         font_large = ImageFont.load_default()
         font_small = ImageFont.load_default()
+        print("[RICHMENU] WARNING: Using default font, Chinese may not render", flush=True)
 
     # 六格設定
     cells = [

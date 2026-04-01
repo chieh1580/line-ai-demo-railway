@@ -1316,6 +1316,35 @@ def webhook_test():
     return "Webhook 測試頁面 — 請透過 LINE 傳訊息測試"
 
 
+@app.route("/test-font")
+def test_font():
+    """測試字體是否能正確渲染中文"""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import io
+        FONT_PATH = "/tmp/NotoSansTC-Regular.otf"
+        exists = os.path.exists(FONT_PATH)
+        size = os.path.getsize(FONT_PATH) if exists else 0
+        img = Image.new("RGB", (600, 200), "#2d1f14")
+        draw = ImageDraw.Draw(img)
+        try:
+            font = ImageFont.truetype(FONT_PATH, 48)
+            draw.text((20, 20), "體驗 AI 客服", fill="#ffffff", font=font)
+            draw.text((20, 100), "美甲美容美髮SPA", fill="#ffffff", font=font)
+            font_status = f"OK: {FONT_PATH} ({size} bytes)"
+        except Exception as e:
+            draw.text((20, 20), f"Font error: {e}", fill="#ff0000")
+            font_status = f"ERROR: {e}"
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        resp = make_response(buf.read())
+        resp.headers['Content-Type'] = 'image/png'
+        return resp
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/")
 def health():
     return "LINE AI 客服系統運作中 ✅"

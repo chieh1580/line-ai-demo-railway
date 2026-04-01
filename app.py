@@ -216,6 +216,56 @@ def get_system_prompt(user_id):
     return BASE_SYSTEM_PROMPT.format(industry_prompt=industry_prompt)
 
 
+# ===== 中文字體載入 =====
+FONT_PATH = "/tmp/NotoSansCJKtc-Regular.otf"
+
+def _ensure_cjk_font():
+    """確保中文字體存在，不存在就下載"""
+    if os.path.exists(FONT_PATH) and os.path.getsize(FONT_PATH) > 1000000:
+        return True
+    font_urls = [
+        "https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
+        "https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
+        "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
+    ]
+    for url in font_urls:
+        try:
+            print(f"[FONT] Downloading from {url[:80]}...", flush=True)
+            r = requests.get(url, timeout=120, allow_redirects=True,
+                             headers={"User-Agent": "Mozilla/5.0"})
+            print(f"[FONT] Response: status={r.status_code} size={len(r.content)}", flush=True)
+            if r.status_code == 200 and len(r.content) > 1000000:
+                with open(FONT_PATH, "wb") as f:
+                    f.write(r.content)
+                print(f"[FONT] Saved to {FONT_PATH}: {len(r.content)} bytes", flush=True)
+                return True
+        except Exception as e:
+            print(f"[FONT] Failed: {e}", flush=True)
+    return False
+
+
+def _load_cjk_fonts(large_size=64, small_size=36):
+    """載入中文字體，回傳 (font_large, font_small)"""
+    from PIL import ImageFont
+    _ensure_cjk_font()
+    candidates = [
+        FONT_PATH,
+        "C:/Windows/Fonts/msjh.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    ]
+    for fp in candidates:
+        try:
+            fl = ImageFont.truetype(fp, large_size)
+            fs = ImageFont.truetype(fp, small_size)
+            print(f"[FONT] Loaded: {fp}", flush=True)
+            return fl, fs
+        except Exception:
+            continue
+    print("[FONT] WARNING: all fonts failed, using default", flush=True)
+    default = ImageFont.load_default()
+    return default, default
+
+
 # ===== LINE API 工具函式 =====
 def get_line_profile(user_id):
     try:
@@ -1191,48 +1241,8 @@ def setup_richmenu():
     img = Image.new("RGB", (W, H), "#2d1f14")
     draw = ImageDraw.Draw(img)
 
-    # 載入中文字體（先嘗試本機，再從網路下載靜態字體）
-    font_large = None
-    font_small = None
-    FONT_PATH = "/tmp/NotoSansTC-Regular.otf"
-
-    # 下載靜態中文字體（非 variable font，確保 Pillow 相容）
-    if not os.path.exists(FONT_PATH):
-        font_urls = [
-            "https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
-            "https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
-        ]
-        for font_url in font_urls:
-            try:
-                print(f"[RICHMENU] Downloading font from {font_url[:60]}...", flush=True)
-                fr = requests.get(font_url, timeout=60, allow_redirects=True)
-                if fr.status_code == 200 and len(fr.content) > 1000000:
-                    with open(FONT_PATH, "wb") as f:
-                        f.write(fr.content)
-                    print(f"[RICHMENU] Font downloaded: {len(fr.content)} bytes", flush=True)
-                    break
-                else:
-                    print(f"[RICHMENU] Font download got status={fr.status_code} size={len(fr.content)}", flush=True)
-            except Exception as e:
-                print(f"[RICHMENU] Font download failed: {e}", flush=True)
-
-    font_candidates = [
-        FONT_PATH,
-        "C:/Windows/Fonts/msjh.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    ]
-    for fp in font_candidates:
-        try:
-            font_large = ImageFont.truetype(fp, 64)
-            font_small = ImageFont.truetype(fp, 36)
-            print(f"[RICHMENU] Using font: {fp}", flush=True)
-            break
-        except Exception as e:
-            print(f"[RICHMENU] Font {fp} failed: {e}", flush=True)
-    if not font_large:
-        font_large = ImageFont.load_default()
-        font_small = ImageFont.load_default()
-        print("[RICHMENU] WARNING: fallback to default font", flush=True)
+    # 載入中文字體
+    font_large, font_small = _load_cjk_fonts(64, 36)
 
     # 六格設定
     cells = [
@@ -1320,21 +1330,16 @@ def webhook_test():
 def test_font():
     """測試字體是否能正確渲染中文"""
     try:
-        from PIL import Image, ImageDraw, ImageFont
+        from PIL import Image, ImageDraw
         import io
-        FONT_PATH = "/tmp/NotoSansTC-Regular.otf"
-        exists = os.path.exists(FONT_PATH)
-        size = os.path.getsize(FONT_PATH) if exists else 0
+        font_large, font_small = _load_cjk_fonts(48, 32)
         img = Image.new("RGB", (600, 200), "#2d1f14")
         draw = ImageDraw.Draw(img)
-        try:
-            font = ImageFont.truetype(FONT_PATH, 48)
-            draw.text((20, 20), "體驗 AI 客服", fill="#ffffff", font=font)
-            draw.text((20, 100), "美甲美容美髮SPA", fill="#ffffff", font=font)
-            font_status = f"OK: {FONT_PATH} ({size} bytes)"
-        except Exception as e:
-            draw.text((20, 20), f"Font error: {e}", fill="#ff0000")
-            font_status = f"ERROR: {e}"
+        draw.text((20, 20), "體驗 AI 客服", fill="#ffffff", font=font_large)
+        draw.text((20, 90), "美甲美容美髮SPA", fill="#ffffff", font=font_large)
+        exists = os.path.exists(FONT_PATH)
+        fsize = os.path.getsize(FONT_PATH) if exists else 0
+        draw.text((20, 160), f"font: {FONT_PATH} ({fsize}b)", fill="#999999", font=font_small)
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         buf.seek(0)

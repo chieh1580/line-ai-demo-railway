@@ -1191,40 +1191,48 @@ def setup_richmenu():
     img = Image.new("RGB", (W, H), "#2d1f14")
     draw = ImageDraw.Draw(img)
 
-    # 載入中文字體（先嘗試本機，再從 Google Fonts 下載）
+    # 載入中文字體（先嘗試本機，再從網路下載靜態字體）
     font_large = None
     font_small = None
-    font_paths = [
-        "/tmp/NotoSansTC.ttf",
+    FONT_PATH = "/tmp/NotoSansTC-Regular.otf"
+
+    # 下載靜態中文字體（非 variable font，確保 Pillow 相容）
+    if not os.path.exists(FONT_PATH):
+        font_urls = [
+            "https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
+            "https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
+        ]
+        for font_url in font_urls:
+            try:
+                print(f"[RICHMENU] Downloading font from {font_url[:60]}...", flush=True)
+                fr = requests.get(font_url, timeout=60, allow_redirects=True)
+                if fr.status_code == 200 and len(fr.content) > 1000000:
+                    with open(FONT_PATH, "wb") as f:
+                        f.write(fr.content)
+                    print(f"[RICHMENU] Font downloaded: {len(fr.content)} bytes", flush=True)
+                    break
+                else:
+                    print(f"[RICHMENU] Font download got status={fr.status_code} size={len(fr.content)}", flush=True)
+            except Exception as e:
+                print(f"[RICHMENU] Font download failed: {e}", flush=True)
+
+    font_candidates = [
+        FONT_PATH,
         "C:/Windows/Fonts/msjh.ttc",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
     ]
-
-    # 如果 /tmp 沒有字體檔，先下載
-    if not os.path.exists("/tmp/NotoSansTC.ttf"):
-        try:
-            font_url = "https://github.com/google/fonts/raw/main/ofl/notosanstc/NotoSansTC%5Bwght%5D.ttf"
-            fr = requests.get(font_url, timeout=30)
-            if fr.status_code == 200:
-                with open("/tmp/NotoSansTC.ttf", "wb") as f:
-                    f.write(fr.content)
-                print("[RICHMENU] Downloaded NotoSansTC font", flush=True)
-        except Exception as e:
-            print(f"[RICHMENU] Font download failed: {e}", flush=True)
-
-    for fp in font_paths:
+    for fp in font_candidates:
         try:
             font_large = ImageFont.truetype(fp, 64)
             font_small = ImageFont.truetype(fp, 36)
             print(f"[RICHMENU] Using font: {fp}", flush=True)
             break
-        except Exception:
-            continue
+        except Exception as e:
+            print(f"[RICHMENU] Font {fp} failed: {e}", flush=True)
     if not font_large:
         font_large = ImageFont.load_default()
         font_small = ImageFont.load_default()
-        print("[RICHMENU] WARNING: Using default font, Chinese may not render", flush=True)
+        print("[RICHMENU] WARNING: fallback to default font", flush=True)
 
     # 六格設定
     cells = [

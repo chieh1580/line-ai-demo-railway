@@ -1211,60 +1211,91 @@ def setup_richmenu():
         return jsonify({"error": "create richmenu failed", "detail": r.text}), 500
     richmenu_id = r.json()["richMenuId"]
 
-    # Step 3: 用 PIL 產生底圖
+    # Step 3: 用 PIL 產生底圖（精緻設計版）
     W, H = 2500, 1686
     cell_w, cell_h = 833, 843
-    img = Image.new("RGB", (W, H), "#2d1f14")
-    draw = ImageDraw.Draw(img)
+    GAP = 6  # 格線寬度
 
-    # 載入中文字體
-    font_large, font_small = _load_cjk_fonts(64, 36)
+    # 載入三種字體大小
+    font_title, _ = _load_cjk_fonts(88, 88)
+    font_sub, _ = _load_cjk_fonts(44, 44)
+    font_icon, _ = _load_cjk_fonts(72, 72)
 
-    # 六格設定
+    # 六格設定（深色高質感配色）
     cells = [
-        {"bg": "#c8401a", "icon": "AI", "title": "體驗 AI 客服", "sub": "問它任何問題"},
-        {"bg": "#a03315", "icon": ">>", "title": "模擬真人轉接", "sub": "看轉接怎麼運作"},
-        {"bg": "#8b6f5e", "icon": "PC", "title": "看後台 Demo", "sub": "管理介面搶先看"},
-        {"bg": "#5a7d6e", "icon": "OK", "title": "適合哪些店家", "sub": "美甲美容美髮SPA"},
-        {"bg": "#d4766a", "icon": "$$", "title": "方案 & 價格", "sub": "怎麼收費"},
-        {"bg": "#b8860b", "icon": "GO", "title": "我有興趣", "sub": "聯繫專人諮詢"},
+        {"bg1": "#1a1a2e", "bg2": "#16213e", "accent": "#e94560", "icon": "💬", "title": "體驗 AI 客服", "sub": "問它任何問題"},
+        {"bg1": "#1a1a2e", "bg2": "#0f3460", "accent": "#e94560", "icon": "👩", "title": "真人轉接展示", "sub": "看通知怎麼運作"},
+        {"bg1": "#1a1a2e", "bg2": "#16213e", "accent": "#e94560", "icon": "📊", "title": "管理後台", "sub": "手機就能操作"},
+        {"bg1": "#0f3460", "bg2": "#1a1a2e", "accent": "#00b4d8", "icon": "✅", "title": "適合哪些店", "sub": "美甲美容美髮SPA"},
+        {"bg1": "#0f3460", "bg2": "#16213e", "accent": "#00b4d8", "icon": "💰", "title": "方案價格", "sub": "超值導入方案"},
+        {"bg1": "#e94560", "bg2": "#c81e45", "accent": "#ffffff", "icon": "🙋", "title": "我有興趣", "sub": "專人立即聯繫"},
     ]
+
+    img = Image.new("RGB", (W, H), "#0a0a14")
+    draw = ImageDraw.Draw(img)
 
     for i, cell in enumerate(cells):
         col = i % 3
         row = i // 3
-        x = col * cell_w + (1 if col == 1 else 0)
-        y = row * cell_h
-        w = cell_w + (1 if col == 1 else 0)
+        x = col * cell_w + (GAP if col > 0 else 0)
+        y = row * cell_h + (GAP if row > 0 else 0)
+        w = cell_w - (GAP if col < 2 else 0)
+        h = cell_h - (GAP if row < 1 else 0)
 
-        # 背景色
-        draw.rectangle([x + 2, y + 2, x + w - 2, y + cell_h - 2], fill=cell["bg"])
+        # 漸層背景（上深下淺模擬）
+        steps = 20
+        r1, g1, b1 = int(cell["bg1"][1:3], 16), int(cell["bg1"][3:5], 16), int(cell["bg1"][5:7], 16)
+        r2, g2, b2 = int(cell["bg2"][1:3], 16), int(cell["bg2"][3:5], 16), int(cell["bg2"][5:7], 16)
+        for s in range(steps):
+            t = s / steps
+            cr = int(r1 + (r2 - r1) * t)
+            cg = int(g1 + (g2 - g1) * t)
+            cb = int(b1 + (b2 - b1) * t)
+            sy = y + int(h * s / steps)
+            ey = y + int(h * (s + 1) / steps)
+            draw.rectangle([x, sy, x + w, ey], fill=f"#{cr:02x}{cg:02x}{cb:02x}")
 
-        # 圓形圖標
-        cx, cy = x + w // 2, y + cell_h // 2 - 80
-        r_size = 60
-        draw.ellipse([cx - r_size, cy - r_size, cx + r_size, cy + r_size], fill="#ffffff30", outline="#ffffff")
-        # 圖標文字
-        icon_bbox = draw.textbbox((0, 0), cell["icon"], font=font_small)
-        icon_w = icon_bbox[2] - icon_bbox[0]
-        icon_h = icon_bbox[3] - icon_bbox[1]
-        draw.text((cx - icon_w // 2, cy - icon_h // 2), cell["icon"], fill="#ffffff", font=font_small)
+        # 底部 accent 線條
+        accent = cell["accent"]
+        draw.rectangle([x, y + h - 6, x + w, y + h], fill=accent)
 
-        # 標題
-        title_bbox = draw.textbbox((0, 0), cell["title"], font=font_large)
-        tw = title_bbox[2] - title_bbox[0]
-        draw.text((x + (w - tw) // 2, y + cell_h // 2 + 20), cell["title"], fill="#ffffff", font=font_large)
+        # 圖標（大字 emoji 風格）
+        cx = x + w // 2
+        icon_text = cell["icon"]
+        try:
+            ib = draw.textbbox((0, 0), icon_text, font=font_icon)
+            iw, ih = ib[2] - ib[0], ib[3] - ib[1]
+            draw.text((cx - iw // 2, y + h // 2 - 180), icon_text, fill="#ffffff", font=font_icon)
+        except Exception:
+            pass
 
-        # 副標
-        sub_bbox = draw.textbbox((0, 0), cell["sub"], font=font_small)
-        sw = sub_bbox[2] - sub_bbox[0]
-        draw.text((x + (w - sw) // 2, y + cell_h // 2 + 100), cell["sub"], fill="#ffffffbb", font=font_small)
+        # 圓形裝飾背景（圖標後面的光暈）
+        for radius in range(90, 40, -10):
+            alpha_hex = f"{int(15 + (90 - radius)):02x}"
+            circle_color = accent[0:7] + alpha_hex if len(accent) >= 7 else accent
+            try:
+                draw.ellipse(
+                    [cx - radius, y + h // 2 - 180 + 20 - radius,
+                     cx + radius, y + h // 2 - 180 + 20 + radius],
+                    fill=None, outline=circle_color, width=2
+                )
+            except Exception:
+                pass
 
-    # 格線
-    for col in range(1, 3):
-        x = col * cell_w + (1 if col == 2 else 0)
-        draw.line([(x, 0), (x, H)], fill="#1a1108", width=3)
-    draw.line([(0, cell_h), (W, cell_h)], fill="#1a1108", width=3)
+        # 主標題（大字）
+        tb = draw.textbbox((0, 0), cell["title"], font=font_title)
+        tw = tb[2] - tb[0]
+        title_y = y + h // 2 - 20
+        draw.text((cx - tw // 2, title_y), cell["title"], fill="#ffffff", font=font_title)
+
+        # 副標題
+        sb = draw.textbbox((0, 0), cell["sub"], font=font_sub)
+        sw = sb[2] - sb[0]
+        sub_y = title_y + 110
+        draw.text((cx - sw // 2, sub_y), cell["sub"], fill="#ffffffaa", font=font_sub)
+
+    # 頂部品牌 bar
+    draw.rectangle([0, 0, W, 4], fill="#e94560")
 
     # 儲存到暫存
     import io

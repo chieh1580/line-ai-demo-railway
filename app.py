@@ -217,50 +217,26 @@ def get_system_prompt(user_id):
 
 
 # ===== 中文字體載入 =====
-FONT_PATH = "/tmp/NotoSansCJKtc-Regular.otf"
-
-def _ensure_cjk_font():
-    """確保中文字體存在，不存在就下載"""
-    if os.path.exists(FONT_PATH) and os.path.getsize(FONT_PATH) > 1000000:
-        return True
-    font_urls = [
-        "https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
-        "https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
-        "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
-    ]
-    for url in font_urls:
-        try:
-            print(f"[FONT] Downloading from {url[:80]}...", flush=True)
-            r = requests.get(url, timeout=120, allow_redirects=True,
-                             headers={"User-Agent": "Mozilla/5.0"})
-            print(f"[FONT] Response: status={r.status_code} size={len(r.content)}", flush=True)
-            if r.status_code == 200 and len(r.content) > 1000000:
-                with open(FONT_PATH, "wb") as f:
-                    f.write(r.content)
-                print(f"[FONT] Saved to {FONT_PATH}: {len(r.content)} bytes", flush=True)
-                return True
-        except Exception as e:
-            print(f"[FONT] Failed: {e}", flush=True)
-    return False
+# 字體檔直接放在 repo 裡，deploy 時一起打包（路徑 /app/NotoSansTC-Regular.otf）
+FONT_CANDIDATES = [
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "NotoSansTC-Regular.otf"),
+    "/app/NotoSansTC-Regular.otf",
+    "NotoSansTC-Regular.otf",
+    "C:/Windows/Fonts/msjh.ttc",
+]
 
 
 def _load_cjk_fonts(large_size=64, small_size=36):
     """載入中文字體，回傳 (font_large, font_small)"""
     from PIL import ImageFont
-    _ensure_cjk_font()
-    candidates = [
-        FONT_PATH,
-        "C:/Windows/Fonts/msjh.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    ]
-    for fp in candidates:
+    for fp in FONT_CANDIDATES:
         try:
             fl = ImageFont.truetype(fp, large_size)
             fs = ImageFont.truetype(fp, small_size)
             print(f"[FONT] Loaded: {fp}", flush=True)
             return fl, fs
-        except Exception:
-            continue
+        except Exception as e:
+            print(f"[FONT] {fp} -> {e}", flush=True)
     print("[FONT] WARNING: all fonts failed, using default", flush=True)
     default = ImageFont.load_default()
     return default, default
@@ -1337,9 +1313,12 @@ def test_font():
         draw = ImageDraw.Draw(img)
         draw.text((20, 20), "體驗 AI 客服", fill="#ffffff", font=font_large)
         draw.text((20, 90), "美甲美容美髮SPA", fill="#ffffff", font=font_large)
-        exists = os.path.exists(FONT_PATH)
-        fsize = os.path.getsize(FONT_PATH) if exists else 0
-        draw.text((20, 160), f"font: {FONT_PATH} ({fsize}b)", fill="#999999", font=font_small)
+        font_info = "unknown"
+        for fp in FONT_CANDIDATES:
+            if os.path.exists(fp):
+                font_info = f"{fp} ({os.path.getsize(fp)}b)"
+                break
+        draw.text((20, 160), f"font: {font_info}", fill="#999999", font=font_small)
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         buf.seek(0)
